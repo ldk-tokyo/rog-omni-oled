@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""后台常驻：把 Claude Code / Codex 的剩余额度实时画到键盘 OLED 屏上（布局 B）。
+"""后台常驻：把 Claude Code / Codex 的剩余额度实时画到键盘 OLED 屏上（默认布局 A）。
 
 数据来源
 - Codex：常驻一个 `codex app-server`，每 2 分钟调用 account/rateLimits/read。
@@ -156,7 +156,7 @@ def idle_seconds() -> float:
 
 def render(claude: dict | None, codex: dict | None, now: float) -> list[int]:
     dashboard.NOW = now
-    return pack(dashboard.layout_b({"claude": to_view(claude, now), "codex": to_view(codex, now)}))
+    return pack(dashboard.layout_columns({"claude": to_view(claude, now), "codex": to_view(codex, now)}))
 
 
 def run(once: bool = False) -> None:

@@ -2,7 +2,7 @@
 """额度看板布局草案：Claude Code / Codex 剩余额度，208×64、16 级灰度。
 
   python dashboard.py mockups        # 生成 README 用的示例图（英 / 中 / 日三种标注）到 docs/
-  python dashboard.py push B         # 把某个布局发到键盘（A / B / D / E / F，以及 B-low 等告急态）
+  python dashboard.py push A         # 把某个布局的示例发到键盘（A–E，以及 A-low 等告急态）
 """
 from __future__ import annotations
 
@@ -201,112 +201,7 @@ SAMPLE_LOW = {
 }
 
 
-# ---------- 布局 D：双环仪表 ----------
-# 每个服务一个仪表：外环 = 7 天，内环 = 5 小时，环心 = 最紧张窗口；右侧是读数面板。
-
-def layout_d(data: dict) -> Image.Image:
-    img = Image.new("L", (W, H), 0)
-    cols = [(name, g * 104) for g, name in enumerate(("claude", "codex"))]
-
-    def paint(d: ImageDraw.ImageDraw) -> None:
-        for name, x0 in cols:
-            svc, cx, cy = data[name], x0 + 32, 32
-            ring(d, cx, cy, 30.5, 4, frac_of(svc, "7d"), segs=20)
-            ring(d, cx, cy, 22, 2.5, frac_of(svc, "5h"))
-            ring_ticks(d, cx, cy, 24.5, 26)
-            icon(d, name, cx, cy + 26, 10)
-            if primary(svc)[1][0] < LOW:  # 告急：环心点亮成实心圆
-                d.ellipse([(cx - 17) * SS, (cy - 17) * SS, (cx + 17) * SS, (cy + 17) * SS], fill=FULL)
-    overlay(img, supersampled(paint))
-
-    d = ImageDraw.Draw(img)
-    for name, x0 in cols:
-        svc, cx, cy = data[name], x0 + 32, 32
-        key, (left, _) = primary(svc)
-        ink = 0 if left < LOW else FULL
-        num = f"{left:.0f}"
-        text(d, (cx, cy + 6), num, 24 if len(num) < 3 else 18, ink, "ms", DIN_ALT)
-        text(d, (cx, cy + 16), key.upper(), 11, 0 if left < LOW else MID, "ms")
-
-        px, pr = x0 + 67, x0 + 101  # 读数面板
-        text(d, (px, 9), NAMES[name], 12, FULL)
-        d.line([px, 12, pr, 12], fill=DIM)
-        d.line([px, 12, px + 8, 12], fill=FULL)
-        for i, k in enumerate(WINDOWS):
-            y = 16 + i * 24
-            text(d, (px, y + 8), k.upper(), 10, MID)
-            value_text(d, (pr + 1, y + 9), svc[k][0] if k in svc else None, 13)
-            segbar_h(d, px, y + 12, 9, 2, frac_of(svc, k))
-            text(d, (px, y + 22), ("T-" + fmt_left(svc[k][1] - NOW)) if k in svc else "NO LIMIT", 9,
-                 MID if k in svc else DIM)
-    for y in range(0, H, 3):
-        d.point((103, y), fill=FAINT)
-    return img
-
-
-# ---------- 布局 E：赛博面板 ----------
-# 顶栏 + 反白切角标签 + 分段条 + 数值 + 倒计时。
-
-def layout_e(data: dict) -> Image.Image:
-    img = Image.new("L", (W, H), 0)
-    d = ImageDraw.Draw(img)
-
-    text(d, (0, 9), "QUOTA MONITOR", 11, FULL)
-    text(d, (W, 9), time.strftime("%H:%M"), 11, FULL, "rs")
-    for x in range(86, 170, 3):
-        d.point((x, 5), fill=FAINT)
-    for i in range(3):  # 状态灯
-        d.rectangle([174 + i * 4, 3, 175 + i * 4, 6], fill=(FULL, MID, DIM)[i])
-    d.line([0, 11, W - 1, 11], fill=DIM)
-    d.line([0, 11, 76, 11], fill=FULL)
-
-    for g, name in enumerate(("claude", "codex")):
-        top, svc = 14 + g * 25, data[name]
-        d.rectangle([0, top, 19, top + 22], fill=FULL)
-        d.polygon([(16, top), (19, top), (19, top + 3)], fill=0)  # 切角
-        text(d, (10, top + 16), TAGS[name], 13, 0, "ms")
-        for j, k in enumerate(WINDOWS):
-            cy = top + 5 + j * 12
-            text(d, (24, cy + 4), k.upper(), 11, MID)
-            segbar_h(d, 40, cy - 3, 26, 7, frac_of(svc, k))
-            value_text(d, (175, cy + 5), svc[k][0] if k in svc else None, 14)
-            if k in svc:
-                text(d, (W, cy + 4), fmt_left(svc[k][1] - NOW), 11, MID, "rs")
-    return img
-
-
-# ---------- 布局 F：能量柱 ----------
-# 四根纵向分段柱：Claude 5H / 7D | Codex 5H / 7D，右侧读数。
-
-def layout_f(data: dict) -> Image.Image:
-    img = Image.new("L", (W, H), 0)
-    groups = [(name, g * 106) for g, name in enumerate(("claude", "codex"))]
-
-    def paint(d: ImageDraw.ImageDraw) -> None:
-        for name, x0 in groups:
-            icon(d, name, x0 + 5, 5, 10)
-    overlay(img, supersampled(paint))
-
-    d = ImageDraw.Draw(img)
-    for name, x0 in groups:
-        svc = data[name]
-        text(d, (x0 + 13, 9), NAMES[name], 12, FULL)
-        d.line([x0, 12, x0 + 101, 12], fill=DIM)
-        d.line([x0, 12, x0, 14], fill=DIM)
-        d.line([x0 + 101, 12, x0 + 101, 14], fill=DIM)
-        for j, k in enumerate(WINDOWS):
-            cx0 = x0 + j * 51
-            segbar_v(d, cx0 + 2, 62, 13, 11, frac_of(svc, k))
-            for t in range(0, 11, 2):  # 刻度
-                d.point((cx0 + 17, 62 - t * 4 - 1), fill=DIM if t % 10 else MID)
-            value_text(d, (cx0 + 50, 32), svc[k][0] if k in svc else None, 20)
-            text(d, (cx0 + 50, 45), k.upper(), 11, MID, "rs")
-            text(d, (cx0 + 50, 59), fmt_left(svc[k][1] - NOW) if k in svc else "N/A", 11,
-                 MID if k in svc else DIM, "rs")
-    return img
-
-
-# ---------- 简洁版组件 ----------
+# ---------- 布局 A / B 共用的组件 ----------
 
 class Scene:
     """先在超采样图层上画所有图形（抗锯齿），再在上面写字。"""
@@ -370,14 +265,14 @@ def reset_label(sc: Scene, right: float, baseline: float, svc: dict, k: str, siz
         sc.shape(lambda L: clock_icon(L, left_ink - r - 3, cy, r, fill, 1.2 if size >= 14 else 1))
 
 
-# ---------- 简洁版 B：左右双栏，大数字 = 最紧张的窗口 ----------
+# ---------- 布局 A（默认）：左右双栏，大数字 = 最紧张的窗口 ----------
 # 可读性规则：小字不低于 15px（大写高 11 像素）；文字只用两档亮度（数值全亮、标签 200）；
 # 每栏只有三行信息：名称 / 大数字 + 倒计时 / 另一个窗口。
 
 LABEL = 200
 
 
-def layout_b(data: dict) -> Image.Image:
+def layout_columns(data: dict) -> Image.Image:
     sc = Scene()
     for g, name in enumerate(("claude", "codex")):
         x0, svc = g * 106, data.get(name) or {}
@@ -427,9 +322,9 @@ def layout_b(data: dict) -> Image.Image:
     return img
 
 
-# ---------- 简洁版 A：上下分块，每个窗口一行 ----------
+# ---------- 布局 B：上下分块，每个窗口一行 ----------
 
-def layout_a(data: dict) -> Image.Image:
+def layout_rows(data: dict) -> Image.Image:
     sc = Scene()
     for g, name in enumerate(("claude", "codex")):
         y0, svc = g * 33, data[name]
@@ -449,60 +344,165 @@ def layout_a(data: dict) -> Image.Image:
     return img
 
 
+# ---------- 布局 C：双环仪表 ----------
+# 每个服务一个仪表：外环 = 7 天，内环 = 5 小时，环心 = 最紧张窗口；右侧是读数面板。
+
+def layout_gauge(data: dict) -> Image.Image:
+    img = Image.new("L", (W, H), 0)
+    cols = [(name, g * 104) for g, name in enumerate(("claude", "codex"))]
+
+    def paint(d: ImageDraw.ImageDraw) -> None:
+        for name, x0 in cols:
+            svc, cx, cy = data[name], x0 + 32, 32
+            ring(d, cx, cy, 30.5, 4, frac_of(svc, "7d"), segs=20)
+            ring(d, cx, cy, 22, 2.5, frac_of(svc, "5h"))
+            ring_ticks(d, cx, cy, 24.5, 26)
+            icon(d, name, cx, cy + 26, 10)
+            if primary(svc)[1][0] < LOW:  # 告急：环心点亮成实心圆
+                d.ellipse([(cx - 17) * SS, (cy - 17) * SS, (cx + 17) * SS, (cy + 17) * SS], fill=FULL)
+    overlay(img, supersampled(paint))
+
+    d = ImageDraw.Draw(img)
+    for name, x0 in cols:
+        svc, cx, cy = data[name], x0 + 32, 32
+        key, (left, _) = primary(svc)
+        ink = 0 if left < LOW else FULL
+        num = f"{left:.0f}"
+        text(d, (cx, cy + 6), num, 24 if len(num) < 3 else 18, ink, "ms", DIN_ALT)
+        text(d, (cx, cy + 16), key.upper(), 11, 0 if left < LOW else MID, "ms")
+
+        px, pr = x0 + 67, x0 + 101  # 读数面板
+        text(d, (px, 9), NAMES[name], 12, FULL)
+        d.line([px, 12, pr, 12], fill=DIM)
+        d.line([px, 12, px + 8, 12], fill=FULL)
+        for i, k in enumerate(WINDOWS):
+            y = 16 + i * 24
+            text(d, (px, y + 8), k.upper(), 10, MID)
+            value_text(d, (pr + 1, y + 9), svc[k][0] if k in svc else None, 13)
+            segbar_h(d, px, y + 12, 9, 2, frac_of(svc, k))
+            text(d, (px, y + 22), ("T-" + fmt_left(svc[k][1] - NOW)) if k in svc else "NO LIMIT", 9,
+                 MID if k in svc else DIM)
+    for y in range(0, H, 3):
+        d.point((103, y), fill=FAINT)
+    return img
+
+
+# ---------- 布局 D：赛博面板 ----------
+# 顶栏 + 反白切角标签 + 分段条 + 数值 + 倒计时。
+
+def layout_panel(data: dict) -> Image.Image:
+    img = Image.new("L", (W, H), 0)
+    d = ImageDraw.Draw(img)
+
+    text(d, (0, 9), "QUOTA MONITOR", 11, FULL)
+    text(d, (W, 9), time.strftime("%H:%M"), 11, FULL, "rs")
+    for x in range(86, 170, 3):
+        d.point((x, 5), fill=FAINT)
+    for i in range(3):  # 状态灯
+        d.rectangle([174 + i * 4, 3, 175 + i * 4, 6], fill=(FULL, MID, DIM)[i])
+    d.line([0, 11, W - 1, 11], fill=DIM)
+    d.line([0, 11, 76, 11], fill=FULL)
+
+    for g, name in enumerate(("claude", "codex")):
+        top, svc = 14 + g * 25, data[name]
+        d.rectangle([0, top, 19, top + 22], fill=FULL)
+        d.polygon([(16, top), (19, top), (19, top + 3)], fill=0)  # 切角
+        text(d, (10, top + 16), TAGS[name], 13, 0, "ms")
+        for j, k in enumerate(WINDOWS):
+            cy = top + 5 + j * 12
+            text(d, (24, cy + 4), k.upper(), 11, MID)
+            segbar_h(d, 40, cy - 3, 26, 7, frac_of(svc, k))
+            value_text(d, (175, cy + 5), svc[k][0] if k in svc else None, 14)
+            if k in svc:
+                text(d, (W, cy + 4), fmt_left(svc[k][1] - NOW), 11, MID, "rs")
+    return img
+
+
+# ---------- 布局 E：能量柱 ----------
+# 四根纵向分段柱：Claude 5H / 7D | Codex 5H / 7D，右侧读数。
+
+def layout_cells(data: dict) -> Image.Image:
+    img = Image.new("L", (W, H), 0)
+    groups = [(name, g * 106) for g, name in enumerate(("claude", "codex"))]
+
+    def paint(d: ImageDraw.ImageDraw) -> None:
+        for name, x0 in groups:
+            icon(d, name, x0 + 5, 5, 10)
+    overlay(img, supersampled(paint))
+
+    d = ImageDraw.Draw(img)
+    for name, x0 in groups:
+        svc = data[name]
+        text(d, (x0 + 13, 9), NAMES[name], 12, FULL)
+        d.line([x0, 12, x0 + 101, 12], fill=DIM)
+        d.line([x0, 12, x0, 14], fill=DIM)
+        d.line([x0 + 101, 12, x0 + 101, 14], fill=DIM)
+        for j, k in enumerate(WINDOWS):
+            cx0 = x0 + j * 51
+            segbar_v(d, cx0 + 2, 62, 13, 11, frac_of(svc, k))
+            for t in range(0, 11, 2):  # 刻度
+                d.point((cx0 + 17, 62 - t * 4 - 1), fill=DIM if t % 10 else MID)
+            value_text(d, (cx0 + 50, 32), svc[k][0] if k in svc else None, 20)
+            text(d, (cx0 + 50, 45), k.upper(), 11, MID, "rs")
+            text(d, (cx0 + 50, 59), fmt_left(svc[k][1] - NOW) if k in svc else "N/A", 11,
+                 MID if k in svc else DIM, "rs")
+    return img
+
+
 LAYOUTS = {
-    "B": lambda: layout_b(SAMPLE),
-    "B-low": lambda: layout_b(SAMPLE_LOW),
-    "B-full": lambda: layout_b(SAMPLE_FULL),
-    "A": lambda: layout_a(SAMPLE),
-    "A-low": lambda: layout_a(SAMPLE_LOW),
-    "D": lambda: layout_d(SAMPLE),
-    "D-low": lambda: layout_d(SAMPLE_LOW),
-    "E": lambda: layout_e(SAMPLE),
-    "E-low": lambda: layout_e(SAMPLE_LOW),
-    "F": lambda: layout_f(SAMPLE),
-    "F-low": lambda: layout_f(SAMPLE_LOW),
+    "A": lambda: layout_columns(SAMPLE),
+    "A-low": lambda: layout_columns(SAMPLE_LOW),
+    "A-full": lambda: layout_columns(SAMPLE_FULL),
+    "B": lambda: layout_rows(SAMPLE),
+    "B-low": lambda: layout_rows(SAMPLE_LOW),
+    "C": lambda: layout_gauge(SAMPLE),
+    "C-low": lambda: layout_gauge(SAMPLE_LOW),
+    "D": lambda: layout_panel(SAMPLE),
+    "D-low": lambda: layout_panel(SAMPLE_LOW),
+    "E": lambda: layout_cells(SAMPLE),
+    "E-low": lambda: layout_cells(SAMPLE_LOW),
 }
 
 # 示例图的标注（README 分英 / 中 / 日三个版本，各用对应语言的图）
 TITLES = {
     "en": {
-        "B": "B · Two columns (default)",
-        "B-low": "B · Low quota (< 20% left)",
-        "B-full": "B · Just reset (100%, widest case)",
-        "A": "A · Stacked rows",
-        "A-low": "A · Low quota",
-        "D": "D · Twin-ring gauge (outer 7-day, inner 5-hour)",
+        "A": "A · Two columns (default)",
+        "A-low": "A · Low quota (< 20% left)",
+        "A-full": "A · Just reset (100%, widest case)",
+        "B": "B · Stacked rows",
+        "B-low": "B · Low quota",
+        "C": "C · Twin-ring gauge (outer 7-day, inner 5-hour)",
+        "C-low": "C · Low quota",
+        "D": "D · Cyber panel: segment bars + countdown",
         "D-low": "D · Low quota",
-        "E": "E · Cyber panel: segment bars + countdown",
+        "E": "E · Power cells: four vertical gauges",
         "E-low": "E · Low quota",
-        "F": "F · Power cells: four vertical gauges",
-        "F-low": "F · Low quota",
     },
     "zh": {
-        "B": "B 左右双栏（默认）",
-        "B-low": "B 告急状态（剩余 < 20%）",
-        "B-full": "B 刚重置（100%，最宽的情况）",
-        "A": "A 上下分块",
-        "A-low": "A 告急状态",
-        "D": "D 双环仪表：外环 7 天、内环 5 小时",
+        "A": "A 左右双栏（默认）",
+        "A-low": "A 告急状态（剩余 < 20%）",
+        "A-full": "A 刚重置（100%，最宽的情况）",
+        "B": "B 上下分块",
+        "B-low": "B 告急状态",
+        "C": "C 双环仪表：外环 7 天、内环 5 小时",
+        "C-low": "C 告急状态",
+        "D": "D 赛博面板：分段条 + 倒计时",
         "D-low": "D 告急状态",
-        "E": "E 赛博面板：分段条 + 倒计时",
+        "E": "E 能量柱：四根纵向分段柱",
         "E-low": "E 告急状态",
-        "F": "F 能量柱：四根纵向分段柱",
-        "F-low": "F 告急状态",
     },
     "ja": {
-        "B": "B 左右 2 カラム（デフォルト）",
-        "B-low": "B 残りわずか（20% 未満）",
-        "B-full": "B リセット直後（100%・最も幅の広いケース）",
-        "A": "A 上下ブロック",
-        "A-low": "A 残りわずか",
-        "D": "D 二重リングゲージ：外側 7 日・内側 5 時間",
+        "A": "A 左右 2 カラム（デフォルト）",
+        "A-low": "A 残りわずか（20% 未満）",
+        "A-full": "A リセット直後（100%・最も幅の広いケース）",
+        "B": "B 上下ブロック",
+        "B-low": "B 残りわずか",
+        "C": "C 二重リングゲージ：外側 7 日・内側 5 時間",
+        "C-low": "C 残りわずか",
+        "D": "D サイバーパネル：セグメントバー＋カウントダウン",
         "D-low": "D 残りわずか",
-        "E": "E サイバーパネル：セグメントバー＋カウントダウン",
+        "E": "E エネルギーセル：縦型ゲージ 4 本",
         "E-low": "E 残りわずか",
-        "F": "F エネルギーセル：縦型ゲージ 4 本",
-        "F-low": "F 残りわずか",
     },
 }
 LABEL_FONTS = {
@@ -511,9 +511,9 @@ LABEL_FONTS = {
     "ja": "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
 }
 DOC_SHEETS = {  # README 用的三张图：文件名 → 布局
-    "dashboard": ["B"],                    # 主图：默认布局
-    "states": ["B-low", "B-full"],         # 默认布局的告急态和最宽的情况
-    "layouts-alt": ["A", "D", "E", "F"],   # 其他布局
+    "dashboard": ["A"],                    # 主图：默认布局
+    "states": ["A-low", "A-full"],         # 默认布局的告急态和最宽的情况
+    "layouts-alt": ["B", "C", "D", "E"],   # 其他布局
 }
 
 

@@ -4,7 +4,7 @@
 
 在 macOS 上驱动 ROG 键盘的 OLED 屏（经 ROG Omni 无线接收器）：显示文字、图片，或者把它变成 **Claude Code / Codex 剩余额度的实时看板**。
 
-![额度看板，默认布局 B：左边 Claude，右边 Codex](docs/dashboard.zh.png)
+![额度看板，默认布局 A：左边 Claude，右边 Codex](docs/dashboard.zh.png)
 
 ## 功能
 
@@ -67,13 +67,13 @@ usage/node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64/claude auth login
 
 两边任何一方没有数据时，对应那栏显示 `no data`，不影响另一栏。重置时间一过，那个窗口直接显示 100%，不用等下一次查询。
 
-![布局 B 的告急状态（数字反白）和刚重置时（100%，最宽的情况）](docs/states.zh.png)
+![布局 A 的告急状态（数字反白）和刚重置时（100%，最宽的情况）](docs/states.zh.png)
 
 ### 调整
 
 - 刷新与查询间隔、空闲判定：[`quota_daemon.py`](quota_daemon.py) 顶部的 `TICK_S`、`CODEX_EVERY_S`、`CLAUDE_EVERY_S`、`IDLE_LIMIT_S`。
 - 告急阈值：[`dashboard.py`](dashboard.py) 里的 `LOW`（默认 20%）。
-- 其他布局：`dashboard.py` 里还有 A（上下分块）、D（双环仪表）、E（赛博面板）、F（能量柱）。`.venv/bin/python dashboard.py push D` 把示例发到键盘上看效果；`.venv/bin/python dashboard.py mockups` 重新生成 `docs/` 下的示例图（英 / 中 / 日三种标注）。
+- 其他布局：`dashboard.py` 里还有 B（上下分块）、C（双环仪表）、D（赛博面板）、E（能量柱）。`.venv/bin/python dashboard.py push C` 把示例发到键盘上看效果；`.venv/bin/python dashboard.py mockups` 重新生成 `docs/` 下的示例图（英 / 中 / 日三种标注）。
 
 ![其他布局：上下分块、双环仪表、赛博面板、能量柱](docs/layouts-alt.zh.png)
 

@@ -4,7 +4,7 @@
 
 ROG Omni レシーバー経由で接続した ROG キーボードの OLED 画面を macOS から操作します。テキストや画像を表示したり、**Claude Code / Codex の残り使用枠をリアルタイムで表示するダッシュボード**にしたりできます。
 
-![使用枠ダッシュボード（デフォルトのレイアウト B）：左が Claude、右が Codex](docs/dashboard.ja.png)
+![使用枠ダッシュボード（デフォルトのレイアウト A）：左が Claude、右が Codex](docs/dashboard.ja.png)
 
 ## 機能
 
@@ -67,13 +67,13 @@ usage/node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64/claude auth login
 
 どちらかのデータが取れない場合、その列は `no data` と表示され、もう一方の列には影響しません。リセット時刻を過ぎた枠は、次の取得を待たずに 100% と表示します。
 
-![レイアウト B の残りわずかの状態（数字が反転）とリセット直後（100%・最も幅の広いケース）](docs/states.ja.png)
+![レイアウト A の残りわずかの状態（数字が反転）とリセット直後（100%・最も幅の広いケース）](docs/states.ja.png)
 
 ### 調整
 
 - 更新・取得の間隔と離席の判定：[`quota_daemon.py`](quota_daemon.py) の先頭にある `TICK_S`、`CODEX_EVERY_S`、`CLAUDE_EVERY_S`、`IDLE_LIMIT_S`。
 - 警告のしきい値：[`dashboard.py`](dashboard.py) の `LOW`（デフォルトは 20%）。
-- ほかのレイアウト：`dashboard.py` には A（上下ブロック）、D（二重リングゲージ）、E（サイバーパネル）、F（エネルギーセル）もあります。`.venv/bin/python dashboard.py push D` でサンプルをキーボードに送って確認できます。`.venv/bin/python dashboard.py mockups` を実行すると、`docs/` のサンプル画像（英語・中国語・日本語のラベル付き）を作り直します。
+- ほかのレイアウト：`dashboard.py` には B（上下ブロック）、C（二重リングゲージ）、D（サイバーパネル）、E（エネルギーセル）もあります。`.venv/bin/python dashboard.py push C` でサンプルをキーボードに送って確認できます。`.venv/bin/python dashboard.py mockups` を実行すると、`docs/` のサンプル画像（英語・中国語・日本語のラベル付き）を作り直します。
 
 ![ほかのレイアウト：上下ブロック、二重リングゲージ、サイバーパネル、エネルギーセル](docs/layouts-alt.ja.png)
 
