@@ -4,7 +4,7 @@
 
 Drive the OLED screen of ROG keyboards connected through the ROG Omni receiver from macOS: show text and images, or turn it into a **live quota dashboard for Claude Code and Codex**.
 
-![Quota dashboard: normal, low-quota and just-reset states, plus the alternative stacked layout](docs/dashboard.en.png)
+![Quota dashboard, default layout B: Claude on the left, Codex on the right](docs/dashboard.en.png)
 
 ## Features
 
@@ -67,13 +67,15 @@ usage/node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64/claude auth login
 
 If either side has no data, its column shows `no data` and the other column is unaffected. Once a reset time passes, that window shows 100% right away without waiting for the next poll.
 
+![Layout B when quota is low (inverted number) and right after a reset (100%, the widest case)](docs/states.en.png)
+
 ### Tuning
 
 - Refresh and polling intervals, idle detection: `TICK_S`, `CODEX_EVERY_S`, `CLAUDE_EVERY_S`, `IDLE_LIMIT_S` at the top of [`quota_daemon.py`](quota_daemon.py).
 - Warning threshold: `LOW` in [`dashboard.py`](dashboard.py) (20% by default).
 - Other layouts: `dashboard.py` also has A (stacked rows), D (twin-ring gauge), E (cyber panel) and F (power cells). `.venv/bin/python dashboard.py push D` sends a sample to the keyboard; `.venv/bin/python dashboard.py mockups` regenerates the sample images in `docs/` (English, Chinese and Japanese labels).
 
-![Alternative layouts: twin-ring gauge, cyber panel, power cells](docs/layouts-alt.en.png)
+![Alternative layouts: stacked rows, twin-ring gauge, cyber panel, power cells](docs/layouts-alt.en.png)
 
 ## Read this before using the Claude quota
 

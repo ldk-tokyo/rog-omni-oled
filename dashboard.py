@@ -510,9 +510,10 @@ LABEL_FONTS = {
     "zh": "/System/Library/Fonts/Hiragino Sans GB.ttc",
     "ja": "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
 }
-DOC_SHEETS = {  # README 用的两张图：文件名 → 布局
-    "dashboard": ["B", "B-low", "B-full", "A"],
-    "layouts-alt": ["D", "E", "F", "F-low"],
+DOC_SHEETS = {  # README 用的三张图：文件名 → 布局
+    "dashboard": ["B"],                    # 主图：默认布局
+    "states": ["B-low", "B-full"],         # 默认布局的告急态和最宽的情况
+    "layouts-alt": ["A", "D", "E", "F"],   # 其他布局
 }
 
 
@@ -535,7 +536,7 @@ def mockups(path: str, keys: list[str], lang: str = "zh") -> None:
     label_font = ImageFont.truetype(LABEL_FONTS[lang], 26)
     tiles = [(TITLES[lang][k], oled_zoom(LAYOUTS[k]())) for k in keys]
     tw, th = tiles[0][1].size
-    pad, label_h, cols = 30, 44, 2
+    pad, label_h, cols = 30, 44, min(2, len(tiles))
     rows = (len(tiles) + cols - 1) // cols
     sheet = Image.new("RGB", (cols * tw + (cols + 1) * pad, rows * (th + label_h + pad) + pad), (245, 245, 247))
     d = ImageDraw.Draw(sheet)
