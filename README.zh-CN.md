@@ -54,6 +54,8 @@ python3 -m venv .venv
 
 `install.sh` 会在缺少依赖时自动安装（Python 虚拟环境、`usage/` 下的 Node 依赖），并在 Claude 还没登录时提示登录命令。
 
+守护进程运行时独占着接收器，其他程序读不到键盘，所以它还会在键盘醒着时每分钟把键盘电量写到 `~/Library/Caches/rog-oled/keyboard.json`（`{"battery": 83, "charging": false, "updated_at": <Unix 时间>}`）。
+
 ### 数据来源
 
 | | 方式 | 频率 | 前提 |

@@ -7,6 +7,10 @@
   不调用模型），需要先用 SDK 自带的 claude 登录一次（见 README）。
 - 键鼠超过 2 分钟没人碰时两边都暂停查询。
 
+顺带共享键盘电量
+- 守护进程独占着接收器，其他程序（比如菜单栏电量工具）读不到键盘。所以键盘在线时
+  每分钟查一次电量，写到 ~/Library/Caches/rog-oled/keyboard.json。
+
 发送策略
 - 每 5 秒检查一次；画面变化才发送（倒计时按分钟走，最多每分钟一次）。
 - 不执行"保存"命令，不写键盘存储；只在启动后第一次发送时保存一次。
@@ -37,6 +41,8 @@ TICK_S = 5
 CODEX_EVERY_S = 120
 CLAUDE_EVERY_S = 300  # 官方建议用量接口不要查得太频繁
 IDLE_LIMIT_S = 120
+BATTERY_EVERY_S = 60
+BATTERY_FILE = os.path.expanduser("~/Library/Caches/rog-oled/keyboard.json")
 
 log = logging.getLogger("rog-oled")
 
@@ -154,6 +160,15 @@ def idle_seconds() -> float:
     return int(m.group(1)) / 1e9 if m else 0.0
 
 
+def write_battery(status: tuple[int, bool], now: float) -> None:
+    """写电量文件；先写临时文件再改名，读的一方不会读到半截。"""
+    os.makedirs(os.path.dirname(BATTERY_FILE), exist_ok=True)
+    tmp = BATTERY_FILE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump({"battery": status[0], "charging": status[1], "updated_at": int(now)}, f)
+    os.replace(tmp, BATTERY_FILE)
+
+
 def render(claude: dict | None, codex: dict | None, now: float) -> list[int]:
     dashboard.NOW = now
     return pack(dashboard.layout_columns({"claude": to_view(claude, now), "codex": to_view(codex, now)}))
@@ -173,6 +188,7 @@ def _loop(codex_client: CodexClient, once: bool) -> None:
     kb: Keyboard | None = None
     last_sent: list[int] | None = None
     saved_once = False
+    battery_at = 0.0
 
     while True:
         now = time.time()
@@ -199,11 +215,17 @@ def _loop(codex_client: CodexClient, once: bool) -> None:
                 if once:
                     log.warning("键盘没响应（可能在休眠）")
                     return
-            elif frame != last_sent:
-                kb.send_banner(frame, "black", save=not saved_once)
-                saved_once = True
-                last_sent = frame
-                log.info("已刷新屏幕（Claude：%s；Codex：%s）", claude, codex)
+            else:
+                if now - battery_at >= BATTERY_EVERY_S:
+                    status = kb.battery_status()
+                    if status is not None:
+                        write_battery(status, now)
+                    battery_at = now
+                if frame != last_sent:
+                    kb.send_banner(frame, "black", save=not saved_once)
+                    saved_once = True
+                    last_sent = frame
+                    log.info("已刷新屏幕（Claude：%s；Codex：%s）", claude, codex)
         except (OSError, ValueError, SystemExit) as e:
             log.warning("键盘通信失败：%s", e)
             if kb:

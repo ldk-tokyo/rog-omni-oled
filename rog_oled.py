@@ -102,8 +102,13 @@ class Keyboard:
         time.sleep(0.3)  # 刚唤醒，稍等一下再发数据
 
     def battery(self) -> int | None:
+        s = self.battery_status()
+        return s[0] if s else None
+
+    def battery_status(self) -> tuple[int, bool] | None:
+        """(电量%, 是否在充电)；第 9 字节是充电标志。"""
         r = self.query([0x02, 0x12, 0x01])
-        return r[6] if r else None
+        return (r[6], bool(r[9])) if r else None
 
     def save(self) -> None:
         self.write([0x02, 0x50, 0x55], 5)

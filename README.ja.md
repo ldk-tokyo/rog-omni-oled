@@ -54,6 +54,8 @@ python3 -m venv .venv
 
 `install.sh` は足りない依存関係（Python の仮想環境と `usage/` 内の Node パッケージ）を自動でインストールします。Claude にまだログインしていない場合は、ログイン用のコマンドを表示します。
 
+デーモンの実行中はレシーバーを占有するため、ほかのプログラムからはキーボードにアクセスできません。そのためキーボードが起きている間は、1 分ごとにバッテリー残量を `~/Library/Caches/rog-oled/keyboard.json` にも書き出します（`{"battery": 83, "charging": false, "updated_at": <Unix 時刻>}`）。
+
 ### データの取得元
 
 | | 方法 | 間隔 | 前提条件 |

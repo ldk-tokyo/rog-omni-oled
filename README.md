@@ -54,6 +54,8 @@ If the keyboard is asleep, the tool asks you to press a key and sends once it wa
 
 `install.sh` installs missing dependencies (the Python virtual environment and the Node packages in `usage/`) and prints the login command if Claude is not signed in yet.
 
+While the daemon runs it holds the receiver, so other programs can't reach the keyboard. It therefore also writes the keyboard battery to `~/Library/Caches/rog-oled/keyboard.json` once a minute while the keyboard is awake (`{"battery": 83, "charging": false, "updated_at": <Unix time>}`).
+
 ### Data sources
 
 | | How | Every | Requires |
