@@ -1,0 +1,11 @@
+rog-omni-oled
+Copyright 2026 Dingkun Liu
+
+The OLED banner protocol for the ROG Omni receiver was learned from
+Delido/signalrgb-plugins (https://github.com/Delido/signalrgb-plugins),
+licensed under the Apache License, Version 2.0. The pixel format
+(208×64, 4-bit grayscale, low nibble = left pixel) was verified on hardware
+for this project.
+
+This project is not affiliated with or endorsed by ASUSTeK Computer Inc.,
+Anthropic PBC, or OpenAI. ROG is a trademark of ASUSTeK Computer Inc.

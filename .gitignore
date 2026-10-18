@@ -1,0 +1,10 @@
+# 依赖与虚拟环境
+.venv/
+usage/node_modules/
+__pycache__/
+*.pyc
+
+# dashboard.py mockups 生成的预览图（README 用的图在 docs/）
+mockups/
+
+.DS_Store
