@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """额度看板布局草案：Claude Code / Codex 剩余额度，208×64、16 级灰度。
 
-  python dashboard.py mockups        # 生成放大预览图 mockups/clean.png（A/B）和 mockups/hires.png（D/E/F）
+  python dashboard.py mockups        # 生成 README 用的示例图（英 / 中 / 日三种标注）到 docs/
   python dashboard.py push B         # 把某个布局发到键盘（A / B / D / E / F，以及 B-low 等告急态）
 """
 from __future__ import annotations
@@ -450,17 +450,69 @@ def layout_a(data: dict) -> Image.Image:
 
 
 LAYOUTS = {
-    "B": ("B 左右双栏（高清）", lambda: layout_b(SAMPLE)),
-    "B-low": ("B 告急状态", lambda: layout_b(SAMPLE_LOW)),
-    "B-full": ("B 刚重置（100%，最宽的情况）", lambda: layout_b(SAMPLE_FULL)),
-    "A": ("A 上下分块（高清）", lambda: layout_a(SAMPLE)),
-    "A-low": ("A 告急状态", lambda: layout_a(SAMPLE_LOW)),
-    "D": ("D 双环仪表：外环 7 天、内环 5 小时", lambda: layout_d(SAMPLE)),
-    "D-low": ("D 告急状态", lambda: layout_d(SAMPLE_LOW)),
-    "E": ("E 赛博面板：分段条 + 数值 + 倒计时", lambda: layout_e(SAMPLE)),
-    "E-low": ("E 告急状态", lambda: layout_e(SAMPLE_LOW)),
-    "F": ("F 能量柱：四根纵向分段柱", lambda: layout_f(SAMPLE)),
-    "F-low": ("F 告急状态", lambda: layout_f(SAMPLE_LOW)),
+    "B": lambda: layout_b(SAMPLE),
+    "B-low": lambda: layout_b(SAMPLE_LOW),
+    "B-full": lambda: layout_b(SAMPLE_FULL),
+    "A": lambda: layout_a(SAMPLE),
+    "A-low": lambda: layout_a(SAMPLE_LOW),
+    "D": lambda: layout_d(SAMPLE),
+    "D-low": lambda: layout_d(SAMPLE_LOW),
+    "E": lambda: layout_e(SAMPLE),
+    "E-low": lambda: layout_e(SAMPLE_LOW),
+    "F": lambda: layout_f(SAMPLE),
+    "F-low": lambda: layout_f(SAMPLE_LOW),
+}
+
+# 示例图的标注（README 分英 / 中 / 日三个版本，各用对应语言的图）
+TITLES = {
+    "en": {
+        "B": "B · Two columns (default)",
+        "B-low": "B · Low quota (< 20% left)",
+        "B-full": "B · Just reset (100%, widest case)",
+        "A": "A · Stacked rows",
+        "A-low": "A · Low quota",
+        "D": "D · Twin-ring gauge (outer 7-day, inner 5-hour)",
+        "D-low": "D · Low quota",
+        "E": "E · Cyber panel: segment bars + countdown",
+        "E-low": "E · Low quota",
+        "F": "F · Power cells: four vertical gauges",
+        "F-low": "F · Low quota",
+    },
+    "zh": {
+        "B": "B 左右双栏（默认）",
+        "B-low": "B 告急状态（剩余 < 20%）",
+        "B-full": "B 刚重置（100%，最宽的情况）",
+        "A": "A 上下分块",
+        "A-low": "A 告急状态",
+        "D": "D 双环仪表：外环 7 天、内环 5 小时",
+        "D-low": "D 告急状态",
+        "E": "E 赛博面板：分段条 + 倒计时",
+        "E-low": "E 告急状态",
+        "F": "F 能量柱：四根纵向分段柱",
+        "F-low": "F 告急状态",
+    },
+    "ja": {
+        "B": "B 左右 2 カラム（デフォルト）",
+        "B-low": "B 残りわずか（20% 未満）",
+        "B-full": "B リセット直後（100%・最も幅の広いケース）",
+        "A": "A 上下ブロック",
+        "A-low": "A 残りわずか",
+        "D": "D 二重リングゲージ：外側 7 日・内側 5 時間",
+        "D-low": "D 残りわずか",
+        "E": "E サイバーパネル：セグメントバー＋カウントダウン",
+        "E-low": "E 残りわずか",
+        "F": "F エネルギーセル：縦型ゲージ 4 本",
+        "F-low": "F 残りわずか",
+    },
+}
+LABEL_FONTS = {
+    "en": "/System/Library/Fonts/HelveticaNeue.ttc",
+    "zh": "/System/Library/Fonts/Hiragino Sans GB.ttc",
+    "ja": "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
+}
+DOC_SHEETS = {  # README 用的两张图：文件名 → 布局
+    "dashboard": ["B", "B-low", "B-full", "A"],
+    "layouts-alt": ["D", "E", "F", "F-low"],
 }
 
 
@@ -479,9 +531,9 @@ def oled_zoom(img: Image.Image, scale: int = 4) -> Image.Image:
     return out
 
 
-def mockups(path: str, keys: list[str]) -> None:
-    label_font = ImageFont.truetype("/System/Library/Fonts/Hiragino Sans GB.ttc", 26)
-    tiles = [(LAYOUTS[k][0], oled_zoom(LAYOUTS[k][1]())) for k in keys]
+def mockups(path: str, keys: list[str], lang: str = "zh") -> None:
+    label_font = ImageFont.truetype(LABEL_FONTS[lang], 26)
+    tiles = [(TITLES[lang][k], oled_zoom(LAYOUTS[k]())) for k in keys]
     tw, th = tiles[0][1].size
     pad, label_h, cols = 30, 44, 2
     rows = (len(tiles) + cols - 1) // cols
@@ -499,14 +551,15 @@ def mockups(path: str, keys: list[str]) -> None:
 
 def main() -> None:
     if len(sys.argv) >= 2 and sys.argv[1] == "mockups":
-        mockups("mockups/clean.png", ["B", "B-low", "B-full", "A"])
-        mockups("mockups/hires.png", ["D", "D-low", "E", "E-low", "F", "F-low"])
+        for name, keys in DOC_SHEETS.items():
+            for lang in TITLES:
+                mockups(f"docs/{name}.{lang}.png", keys, lang)
     elif len(sys.argv) == 3 and sys.argv[1] == "push" and sys.argv[2] in LAYOUTS:
         from rog_oled import Keyboard, pack
         kb = Keyboard()
         try:
             kb.wait_connected()
-            kb.send_banner(pack(LAYOUTS[sys.argv[2]][1]()), "black")
+            kb.send_banner(pack(LAYOUTS[sys.argv[2]]()), "black")
             print(f"已发送布局 {sys.argv[2]}")
         finally:
             kb.close()
