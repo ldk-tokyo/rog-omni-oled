@@ -7,9 +7,11 @@
   不调用模型），需要先用 SDK 自带的 claude 登录一次（见 README）。
 - 键鼠超过 2 分钟没人碰时两边都暂停查询。
 
-顺带共享键盘电量
+顺带共享键盘电量和额度
 - 守护进程独占着接收器，其他程序（比如菜单栏电量工具）读不到键盘。所以键盘在线时
   每分钟查一次电量，写到 ~/Library/Caches/rog-oled/keyboard.json。
+- 额度数据和键盘连接状态写到 ~/Library/Caches/rog-oled/status.json（菜单栏程序
+  menubar.py 读它）；内容变化时立即写，否则每分钟写一次，兼作心跳。
 
 发送策略
 - 每 5 秒检查一次；画面变化才发送（倒计时按分钟走，最多每分钟一次）。
@@ -43,6 +45,8 @@ CLAUDE_EVERY_S = 300  # 官方建议用量接口不要查得太频繁
 IDLE_LIMIT_S = 120
 BATTERY_EVERY_S = 60
 BATTERY_FILE = os.path.expanduser("~/Library/Caches/rog-oled/keyboard.json")
+STATUS_EVERY_S = 60
+STATUS_FILE = os.path.expanduser("~/Library/Caches/rog-oled/status.json")
 
 log = logging.getLogger("rog-oled")
 
@@ -160,13 +164,17 @@ def idle_seconds() -> float:
     return int(m.group(1)) / 1e9 if m else 0.0
 
 
-def write_battery(status: tuple[int, bool], now: float) -> None:
-    """写电量文件；先写临时文件再改名，读的一方不会读到半截。"""
-    os.makedirs(os.path.dirname(BATTERY_FILE), exist_ok=True)
-    tmp = BATTERY_FILE + ".tmp"
+def write_json(path: str, data: dict) -> None:
+    """先写临时文件再改名，读的一方不会读到半截。"""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
     with open(tmp, "w") as f:
-        json.dump({"battery": status[0], "charging": status[1], "updated_at": int(now)}, f)
-    os.replace(tmp, BATTERY_FILE)
+        json.dump(data, f)
+    os.replace(tmp, path)
+
+
+def write_battery(status: tuple[int, bool], now: float) -> None:
+    write_json(BATTERY_FILE, {"battery": status[0], "charging": status[1], "updated_at": int(now)})
 
 
 def render(claude: dict | None, codex: dict | None, now: float) -> list[int]:
@@ -183,12 +191,14 @@ def run(once: bool = False) -> None:
 
 
 def _loop(codex_client: CodexClient, once: bool) -> None:
-    codex, codex_at = None, 0.0
-    claude, claude_at = None, 0.0
+    codex, codex_at, codex_ok_at = None, 0.0, None
+    claude, claude_at, claude_ok_at = None, 0.0, None
     kb: Keyboard | None = None
+    kb_state = "unknown"  # connected / asleep / no_receiver / error；离开电脑时保持上次的值
     last_sent: list[int] | None = None
     saved_once = False
     battery_at = 0.0
+    shared, shared_at = None, 0.0
 
     while True:
         now = time.time()
@@ -196,12 +206,12 @@ def _loop(codex_client: CodexClient, once: bool) -> None:
         if active and now - codex_at >= CODEX_EVERY_S:  # 离开电脑时不查询
             fresh = codex_client.fetch()
             if fresh is not None:
-                codex = fresh
+                codex, codex_ok_at = fresh, int(now)
             codex_at = now
         if active and now - claude_at >= CLAUDE_EVERY_S:
             fresh = fetch_claude()
             if fresh is not None:
-                claude = fresh
+                claude, claude_ok_at = fresh, int(now)
             claude_at = now
 
         frame = render(claude, codex, now)
@@ -211,11 +221,13 @@ def _loop(codex_client: CodexClient, once: bool) -> None:
             if not active:
                 last_sent = None  # 你回来后立即补发
             elif not kb.is_connected():
+                kb_state = "asleep"
                 last_sent = None  # 键盘醒来后立即补发
                 if once:
                     log.warning("键盘没响应（可能在休眠）")
                     return
             else:
+                kb_state = "connected"
                 if now - battery_at >= BATTERY_EVERY_S:
                     status = kb.battery_status()
                     if status is not None:
@@ -228,9 +240,17 @@ def _loop(codex_client: CodexClient, once: bool) -> None:
                     log.info("已刷新屏幕（Claude：%s；Codex：%s）", claude, codex)
         except (OSError, ValueError, SystemExit) as e:
             log.warning("键盘通信失败：%s", e)
+            kb_state = "no_receiver" if isinstance(e, SystemExit) else "error"  # Keyboard() 找不到接收器时 sys.exit
             if kb:
                 kb.close()
             kb, last_sent = None, None
+
+        state = {"claude": {"windows": claude, "fetched_at": claude_ok_at},
+                 "codex": {"windows": codex, "fetched_at": codex_ok_at},
+                 "keyboard": kb_state}
+        if state != shared or now - shared_at >= STATUS_EVERY_S:
+            write_json(STATUS_FILE, {**state, "updated_at": int(now)})
+            shared, shared_at = state, now
 
         if once:
             break

@@ -12,6 +12,7 @@ Drive the OLED screen of ROG keyboards connected through the ROG Omni receiver f
 - **Quota dashboard**: Claude on the left, Codex on the right. The big number is whichever window (5-hour or 7-day) has the least quota left, next to its reset countdown. Below 20% the number turns inverted as a warning.
 - **Runs in the background**: starts at login via launchd. Sends a frame only when the picture changes, never writes the keyboard's flash on refresh, and pauses polling and sending while you are away or the keyboard sleeps.
 - **Command-line tool**: push a line of text or an image at any time, or switch back to a built-in ROG animation.
+- **Menu bar**: shows the quota and keyboard battery live in the Mac menu bar; the drop-down menu adds reset times, CPU / memory, network speed and the date and time.
 
 ## Compatibility
 
@@ -49,14 +50,14 @@ If the keyboard is asleep, the tool asks you to press a key and sends once it wa
 ## Quota dashboard
 
 ```bash
-./install.sh      # install as a login service and start it (log: ~/Library/Logs/rog-oled.log)
+./install.sh      # install the dashboard and the menu bar app as login services and start them (log: ~/Library/Logs/rog-oled.log)
 ./uninstall.sh    # stop and remove it
 .venv/bin/python quota_daemon.py --once   # refresh once, for troubleshooting
 ```
 
 `install.sh` installs missing dependencies (the Python virtual environment and the Node packages in `usage/`) and prints the login command if Claude is not signed in yet.
 
-While the daemon runs it holds the receiver, so other programs can't reach the keyboard. It therefore also writes the keyboard battery to `~/Library/Caches/rog-oled/keyboard.json` once a minute while the keyboard is awake (`{"battery": 83, "charging": false, "updated_at": <Unix time>}`).
+While the daemon runs it holds the receiver, so other programs can't reach the keyboard. It therefore also writes the keyboard battery to `~/Library/Caches/rog-oled/keyboard.json` once a minute while the keyboard is awake (`{"battery": 83, "charging": false, "updated_at": <Unix time>}`). The quota data and the keyboard connection state go to `status.json` in the same folder, for the menu bar app.
 
 ### Data sources
 
@@ -72,6 +73,15 @@ usage/node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64/claude auth login
 If either side has no data, its column shows `no data` and the other column is unaffected. Once a reset time passes, that window shows 100% right away without waiting for the next poll.
 
 ![Layout A when quota is low (inverted number) and right after a reset (100%, the widest case)](docs/states.en.png)
+
+### Menu bar
+
+`install.sh` also installs the menu bar app [`menubar.py`](menubar.py), which stays in the Mac menu bar and refreshes every second:
+
+- **Title**: `CC 70% · CX 91% · ⌨ 96%` by default, that is, the quota left in the tightest Claude and Codex windows plus the keyboard battery. Below 20% the number turns red. Pick what the title shows in the "菜单栏显示" (Show in menu bar) submenu; CPU, memory, network speed and the date and time can be added too.
+- **Drop-down menu**: quota left and reset time for each window, when the quota was last fetched, keyboard connection and battery, CPU / memory use, network download / upload speed (physical `en*` interfaces only), and the date and time.
+
+The menu bar app never talks to the keyboard: quota and keyboard state come from the `status.json` the daemon writes, and the battery from `keyboard.json`. The menu says so when the dashboard service isn't running. Choosing "退出" (Quit) in the menu keeps it closed until your next login; run `./install.sh` again to start it right away.
 
 ### Tuning
 
@@ -110,8 +120,9 @@ For anyone porting this to another platform. The protocol is reverse-engineered 
 | [`rog_oled.py`](rog_oled.py) | Device communication, pixel packing, command-line tool |
 | [`dashboard.py`](dashboard.py) | Dashboard layouts and rendering (anti-aliased, supersampled) |
 | [`quota_daemon.py`](quota_daemon.py) | Background service: fetch, render, send when changed |
+| [`menubar.py`](menubar.py) | Menu bar app: quota, keyboard battery, CPU / memory, network speed, date and time |
 | [`usage/claude_usage.mjs`](usage/claude_usage.mjs) | Claude plan usage through the Agent SDK |
-| [`install.sh`](install.sh) / [`uninstall.sh`](uninstall.sh) | Install / remove the launchd service |
+| [`install.sh`](install.sh) / [`uninstall.sh`](uninstall.sh) | Install / remove the launchd services (dashboard and menu bar) |
 
 ## Acknowledgements
 

@@ -12,6 +12,7 @@
 - **额度看板**：左右两栏分别显示 Claude 和 Codex。大数字是最紧张的那个窗口（5 小时或 7 天）还剩多少，旁边是重置倒计时；剩余低于 20% 时大数字反白告警。
 - **后台常驻**：用 launchd 开机自启。画面变化才发送，刷新不写键盘闪存；键鼠空闲或键盘休眠时暂停查询和发送。
 - **命令行工具**：随时往屏幕发一行字、一张图，或切回 ROG 内置动画。
+- **菜单栏**：在 Mac 菜单栏实时显示额度和键盘电量；下拉菜单里还有重置时间、CPU / 内存、网络速度和日期时间。
 
 ## 兼容性
 
@@ -49,14 +50,14 @@ python3 -m venv .venv
 ## 额度看板
 
 ```bash
-./install.sh      # 安装为开机自启服务并立即启动（日志：~/Library/Logs/rog-oled.log）
+./install.sh      # 把看板和菜单栏程序安装为开机自启服务并立即启动（日志：~/Library/Logs/rog-oled.log）
 ./uninstall.sh    # 停止并移除
 .venv/bin/python quota_daemon.py --once   # 手动刷新一次，用于排查
 ```
 
 `install.sh` 会在缺少依赖时自动安装（Python 虚拟环境、`usage/` 下的 Node 依赖），并在 Claude 还没登录时提示登录命令。
 
-守护进程运行时独占着接收器，其他程序读不到键盘，所以它还会在键盘醒着时每分钟把键盘电量写到 `~/Library/Caches/rog-oled/keyboard.json`（`{"battery": 83, "charging": false, "updated_at": <Unix 时间>}`）。
+守护进程运行时独占着接收器，其他程序读不到键盘，所以它还会在键盘醒着时每分钟把键盘电量写到 `~/Library/Caches/rog-oled/keyboard.json`（`{"battery": 83, "charging": false, "updated_at": <Unix 时间>}`）。额度数据和键盘连接状态写到同目录下的 `status.json`，供菜单栏程序读取。
 
 ### 数据来源
 
@@ -72,6 +73,15 @@ usage/node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64/claude auth login
 两边任何一方没有数据时，对应那栏显示 `no data`，不影响另一栏。重置时间一过，那个窗口直接显示 100%，不用等下一次查询。
 
 ![布局 A 的告急状态（数字反白）和刚重置时（100%，最宽的情况）](docs/states.zh.png)
+
+### 菜单栏
+
+`install.sh` 同时安装菜单栏程序 [`menubar.py`](menubar.py)，常驻在 Mac 菜单栏，每秒刷新一次：
+
+- **标题**：默认显示 `CC 70% · CX 91% · ⌨ 96%`，即 Claude、Codex 最紧张窗口的剩余额度和键盘电量；剩余低于 20% 时数字变红。在“菜单栏显示”子菜单里可以勾选要显示的项，还能加上 CPU、内存、网络速度和日期时间。
+- **下拉菜单**：各窗口的剩余额度和重置时间、额度更新时间、键盘连接状态和电量、CPU / 内存占用、网络上下行速度（只算 `en*` 物理网卡）、日期时间。
+
+菜单栏程序不直接访问键盘：额度和键盘状态来自守护进程写的 `status.json`，电量来自 `keyboard.json`。看板服务没在运行时，菜单里会给出提示。从菜单里点“退出”后不会自动重启，下次登录时才会启动；想马上启动可以再运行一次 `./install.sh`。
 
 ### 调整
 
@@ -110,8 +120,9 @@ usage/node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64/claude auth login
 | [`rog_oled.py`](rog_oled.py) | 设备通信、像素打包、命令行工具 |
 | [`dashboard.py`](dashboard.py) | 看板布局与渲染（抗锯齿、超采样） |
 | [`quota_daemon.py`](quota_daemon.py) | 后台常驻：取数、渲染、按需发送 |
+| [`menubar.py`](menubar.py) | 菜单栏常驻：额度、键盘电量、CPU / 内存、网络速度、日期时间 |
 | [`usage/claude_usage.mjs`](usage/claude_usage.mjs) | 通过 Agent SDK 查询 Claude 订阅用量 |
-| [`install.sh`](install.sh) / [`uninstall.sh`](uninstall.sh) | 安装 / 移除 launchd 服务 |
+| [`install.sh`](install.sh) / [`uninstall.sh`](uninstall.sh) | 安装 / 移除 launchd 服务（看板和菜单栏） |
 
 ## 致谢
 

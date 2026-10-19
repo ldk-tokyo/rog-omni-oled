@@ -1,2 +1,7 @@
 hidapi>=0.14
 Pillow>=10.1
+psutil>=5.9
+pyobjc-framework-Cocoa>=10
+# PyObjC 12 起不再支持 Python 3.9（macOS 自带的 python3），只能从源码编译，所以固定在 11
+pyobjc-core<12; python_version < "3.10"
+pyobjc-framework-Cocoa<12; python_version < "3.10"
