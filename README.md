@@ -19,8 +19,10 @@ Drive the OLED screen of ROG keyboards connected through the ROG Omni receiver f
 |---|---|
 | OS | macOS (tested on Apple Silicon); the dashboard uses fonts that ship with macOS |
 | Runtime | Python 3.9+; Node 18+ (only for the Claude quota) |
-| Connection | Wireless through the ROG Omni receiver (USB `0B05:1ACE`) only; wired and Bluetooth are not implemented |
+| Connection | 2.4 GHz wireless through the ROG Omni receiver (USB `0B05:1ACE`) only; wired is not implemented, and **Bluetooth mode does not work** |
 | Tested hardware | One ROG keyboard paired with an Omni receiver (the receiver reports keyboard PID `0x1C23`). The original protocol author tested the ROG Azoth. Other ROG keyboards with an OLED screen may work but are untested |
+
+> **Bluetooth mode does not work.** When the keyboard is connected to the Mac over Bluetooth, macOS only exposes the standard keyboard, mouse and media-key interfaces. The vendor-defined interface (usage page `0xFF00`) that carries the screen data is missing, so the OLED screen cannot be driven (confirmed by testing). Plug in the Omni receiver and switch the keyboard to 2.4 GHz mode.
 
 ## Install
 
