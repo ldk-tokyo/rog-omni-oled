@@ -3,7 +3,8 @@
 
 数据来源
 - Claude / Codex 额度和键盘连接状态：quota_daemon.py 写的 ~/Library/Caches/rog-oled/status.json
-  （守护进程独占接收器，菜单栏程序不直接碰键盘）。
+  （守护进程独占接收器，菜单栏程序不直接碰键盘）。只装 Mac 部分时守护进程以 --no-keyboard
+  运行，菜单里不显示键盘那一行。
 - 键盘电量：同目录下的 keyboard.json。
 - CPU、内存、网络速度、日期时间：本机实时读取（psutil）。
 
@@ -170,7 +171,8 @@ class MenuBar(NSObject):
         self.rows["fetched"] = self._row("")
         self.menu.addItem_(NSMenuItem.separatorItem())
         self.rows["keyboard"] = self._row("")
-        self.menu.addItem_(NSMenuItem.separatorItem())
+        self.kb_sep = NSMenuItem.separatorItem()  # 只装 Mac 部分时和键盘那一行一起隐藏
+        self.menu.addItem_(self.kb_sep)
         self.rows["sys"] = self._row("")
         self.rows["net"] = self._row("")
         self.rows["clock"] = self._row("")
@@ -232,6 +234,7 @@ class MenuBar(NSObject):
         now = time.time()
         status = read_json(STATUS_FILE)
         running = bool(status) and now - status.get("updated_at", 0) <= STALE_S
+        no_keyboard = running and status.get("keyboard") == "disabled"  # 守护进程以 --no-keyboard 运行
         views = {svc: to_view(((status or {}).get(svc) or {}).get("windows"), now) for svc in SERVICES}
         battery = read_json(BATTERY_FILE)
         cpu = psutil.cpu_percent(None)
@@ -247,6 +250,7 @@ class MenuBar(NSObject):
         self.rows["clock"].setAttributedTitle_(row_text(fmt_today(now)))
         for key, item in self.toggles.items():
             item.setState_(1 if key in self.title_items else 0)
+        self.toggles["battery"].setHidden_(no_keyboard)
 
         parts = []  # (文字, 是否告急)
         for key in self.title_items:
@@ -254,7 +258,7 @@ class MenuBar(NSObject):
                 svc = views[key]
                 left = dashboard.primary(svc)[1][0] if svc else None
                 parts.append((f"{dashboard.TAGS[key]} {'--' if left is None else f'{left:.0f}%'}", is_low(left)))
-            elif key == "battery":
+            elif key == "battery" and not no_keyboard:
                 b = (battery or {}).get("battery")
                 parts.append((f"⌨ {'--' if b is None else f'{b}%'}", False))
             elif key == "cpu":
@@ -291,11 +295,13 @@ class MenuBar(NSObject):
 
     @objc.python_method
     def _update_keyboard_row(self, status: dict | None, running: bool, battery: dict | None, now: float) -> None:
+        state = status.get("keyboard", "unknown") if running else None
+        self.rows["keyboard"].setHidden_(state == "disabled")
+        self.kb_sep.setHidden_(state == "disabled")
         if not running:
             self.rows["keyboard"].setAttributedTitle_(
-                row_text("看板服务未运行（运行 ./install.sh 启动）", color=NSColor.systemOrangeColor()))
+                row_text("后台服务未运行（运行 ./install.sh 启动）", color=NSColor.systemOrangeColor()))
             return
-        state = status.get("keyboard", "unknown")
         b = battery or {}
         level = f"电量 {b['battery']}%{'（充电中）' if b.get('charging') else ''}" if "battery" in b else "电量未知"
         if state == "connected":

@@ -50,12 +50,24 @@ If the keyboard is asleep, the tool asks you to press a key and sends once it wa
 ## Quota dashboard
 
 ```bash
-./install.sh      # install the dashboard and the menu bar app as login services and start them (log: ~/Library/Logs/rog-oled.log)
+./install.sh      # install as login services and start them; asks which parts to install first (log: ~/Library/Logs/rog-oled.log)
 ./uninstall.sh    # stop and remove it
 .venv/bin/python quota_daemon.py --once   # refresh once, for troubleshooting
 ```
 
 `install.sh` installs missing dependencies (the Python virtual environment and the Node packages in `usage/`) and prints the login command if Claude is not signed in yet.
+
+### Choosing what to install
+
+`./install.sh` asks which parts to install; press Enter to install both. You can also pass an option:
+
+| Option | Installs | Needs a ROG keyboard |
+|---|---|---|
+| `--keyboard` | Keyboard part only: the quota dashboard on the OLED screen | Yes |
+| `--mac` | Mac part only: the [menu bar app](#menu-bar). The daemon runs with `--no-keyboard`, only fetching quota data and never opening the receiver | No |
+| `--all` | Both | Yes |
+
+Run `install.sh` again to switch; any part you don't pick is removed. When it runs without a terminal (from a script) and without an option, it installs both.
 
 While the daemon runs it holds the receiver, so other programs can't reach the keyboard. It therefore also writes the keyboard battery to `~/Library/Caches/rog-oled/keyboard.json` once a minute while the keyboard is awake (`{"battery": 83, "charging": false, "updated_at": <Unix time>}`). The quota data and the keyboard connection state go to `status.json` in the same folder, for the menu bar app.
 
@@ -76,12 +88,12 @@ If either side has no data, its column shows `no data` and the other column is u
 
 ### Menu bar
 
-`install.sh` also installs the menu bar app [`menubar.py`](menubar.py), which stays in the Mac menu bar and refreshes every second:
+Installing the Mac part (`--mac` or `--all`) adds the menu bar app [`menubar.py`](menubar.py). It stays in the Mac menu bar and refreshes every second:
 
 - **Title**: `CC 70% · CX 91% · ⌨ 96%` by default, that is, the quota left in the tightest Claude and Codex windows plus the keyboard battery. Below 20% the number turns red. Pick what the title shows in the "菜单栏显示" (Show in menu bar) submenu; CPU, memory, network speed and the date and time can be added too.
 - **Drop-down menu**: quota left and reset time for each window, when the quota was last fetched, keyboard connection and battery, CPU / memory use, network download / upload speed (physical `en*` interfaces only), and the date and time.
 
-The menu bar app never talks to the keyboard: quota and keyboard state come from the `status.json` the daemon writes, and the battery from `keyboard.json`. The menu says so when the dashboard service isn't running. Choosing "退出" (Quit) in the menu keeps it closed until your next login; run `./install.sh` again to start it right away.
+The menu bar app never talks to the keyboard: quota and keyboard state come from the `status.json` the daemon writes, and the battery from `keyboard.json`. The menu says so when the background service isn't running. With the Mac part only, nothing about the keyboard appears in the menu or the title. Choosing "退出" (Quit) in the menu keeps it closed until your next login; run `./install.sh` again to start it right away.
 
 ### Tuning
 

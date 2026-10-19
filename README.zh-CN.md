@@ -50,12 +50,24 @@ python3 -m venv .venv
 ## 额度看板
 
 ```bash
-./install.sh      # 把看板和菜单栏程序安装为开机自启服务并立即启动（日志：~/Library/Logs/rog-oled.log）
+./install.sh      # 安装为开机自启服务并立即启动，会先让你选择安装哪些部分（日志：~/Library/Logs/rog-oled.log）
 ./uninstall.sh    # 停止并移除
 .venv/bin/python quota_daemon.py --once   # 手动刷新一次，用于排查
 ```
 
 `install.sh` 会在缺少依赖时自动安装（Python 虚拟环境、`usage/` 下的 Node 依赖），并在 Claude 还没登录时提示登录命令。
+
+### 选择安装的部分
+
+运行 `./install.sh` 时会提示选择，直接回车就是两个都装；也可以直接带参数：
+
+| 参数 | 安装内容 | 需要 ROG 键盘 |
+|---|---|---|
+| `--keyboard` | 只装键盘部分：OLED 屏上的额度看板 | 需要 |
+| `--mac` | 只装 Mac 部分：[菜单栏](#菜单栏)。守护进程以 `--no-keyboard` 运行，只负责取额度数据，不连接接收器 | 不需要 |
+| `--all` | 两个都装 | 需要 |
+
+重复运行 `install.sh` 就能切换，没选上的部分会被移除。在脚本里调用（没有终端）又没带参数时，两个都装。
 
 守护进程运行时独占着接收器，其他程序读不到键盘，所以它还会在键盘醒着时每分钟把键盘电量写到 `~/Library/Caches/rog-oled/keyboard.json`（`{"battery": 83, "charging": false, "updated_at": <Unix 时间>}`）。额度数据和键盘连接状态写到同目录下的 `status.json`，供菜单栏程序读取。
 
@@ -76,12 +88,12 @@ usage/node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64/claude auth login
 
 ### 菜单栏
 
-`install.sh` 同时安装菜单栏程序 [`menubar.py`](menubar.py)，常驻在 Mac 菜单栏，每秒刷新一次：
+选择安装 Mac 部分（`--mac` 或 `--all`）时会装上菜单栏程序 [`menubar.py`](menubar.py)。它常驻在 Mac 菜单栏，每秒刷新一次：
 
 - **标题**：默认显示 `CC 70% · CX 91% · ⌨ 96%`，即 Claude、Codex 最紧张窗口的剩余额度和键盘电量；剩余低于 20% 时数字变红。在“菜单栏显示”子菜单里可以勾选要显示的项，还能加上 CPU、内存、网络速度和日期时间。
 - **下拉菜单**：各窗口的剩余额度和重置时间、额度更新时间、键盘连接状态和电量、CPU / 内存占用、网络上下行速度（只算 `en*` 物理网卡）、日期时间。
 
-菜单栏程序不直接访问键盘：额度和键盘状态来自守护进程写的 `status.json`，电量来自 `keyboard.json`。看板服务没在运行时，菜单里会给出提示。从菜单里点“退出”后不会自动重启，下次登录时才会启动；想马上启动可以再运行一次 `./install.sh`。
+菜单栏程序不直接访问键盘：额度和键盘状态来自守护进程写的 `status.json`，电量来自 `keyboard.json`。后台服务没在运行时，菜单里会给出提示；只装 Mac 部分时，菜单和标题里都不显示键盘相关的内容。从菜单里点“退出”后不会自动重启，下次登录时才会启动；想马上启动可以再运行一次 `./install.sh`。
 
 ### 调整
 

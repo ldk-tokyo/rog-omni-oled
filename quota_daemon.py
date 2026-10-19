@@ -20,6 +20,7 @@
 
   python quota_daemon.py            # 前台运行（Ctrl+C 退出）
   python quota_daemon.py --once     # 只取一次数据、发一帧就退出
+  python quota_daemon.py --no-keyboard   # 不连接键盘，只给菜单栏程序提供数据
 """
 from __future__ import annotations
 
@@ -182,19 +183,21 @@ def render(claude: dict | None, codex: dict | None, now: float) -> list[int]:
     return pack(dashboard.layout_columns({"claude": to_view(claude, now), "codex": to_view(codex, now)}))
 
 
-def run(once: bool = False) -> None:
+def run(once: bool = False, keyboard: bool = True) -> None:
     codex_client = CodexClient()
     try:
-        _loop(codex_client, once)
+        _loop(codex_client, once, keyboard)
     finally:
         codex_client.close()
 
 
-def _loop(codex_client: CodexClient, once: bool) -> None:
+def _loop(codex_client: CodexClient, once: bool, keyboard: bool) -> None:
+    """keyboard=False 时只取数、写 status.json，不碰接收器（只装 Mac 菜单栏时用）。"""
     codex, codex_at, codex_ok_at = None, 0.0, None
     claude, claude_at, claude_ok_at = None, 0.0, None
     kb: Keyboard | None = None
-    kb_state = "unknown"  # connected / asleep / no_receiver / error；离开电脑时保持上次的值
+    # connected / asleep / no_receiver / error / disabled；离开电脑时保持上次的值
+    kb_state = "unknown" if keyboard else "disabled"
     last_sent: list[int] | None = None
     saved_once = False
     battery_at = 0.0
@@ -214,36 +217,37 @@ def _loop(codex_client: CodexClient, once: bool) -> None:
                 claude, claude_ok_at = fresh, int(now)
             claude_at = now
 
-        frame = render(claude, codex, now)
-        try:
-            if kb is None:
-                kb = Keyboard()
-            if not active:
-                last_sent = None  # 你回来后立即补发
-            elif not kb.is_connected():
-                kb_state = "asleep"
-                last_sent = None  # 键盘醒来后立即补发
-                if once:
-                    log.warning("键盘没响应（可能在休眠）")
-                    return
-            else:
-                kb_state = "connected"
-                if now - battery_at >= BATTERY_EVERY_S:
-                    status = kb.battery_status()
-                    if status is not None:
-                        write_battery(status, now)
-                    battery_at = now
-                if frame != last_sent:
-                    kb.send_banner(frame, "black", save=not saved_once)
-                    saved_once = True
-                    last_sent = frame
-                    log.info("已刷新屏幕（Claude：%s；Codex：%s）", claude, codex)
-        except (OSError, ValueError, SystemExit) as e:
-            log.warning("键盘通信失败：%s", e)
-            kb_state = "no_receiver" if isinstance(e, SystemExit) else "error"  # Keyboard() 找不到接收器时 sys.exit
-            if kb:
-                kb.close()
-            kb, last_sent = None, None
+        if keyboard:
+            frame = render(claude, codex, now)
+            try:
+                if kb is None:
+                    kb = Keyboard()
+                if not active:
+                    last_sent = None  # 你回来后立即补发
+                elif not kb.is_connected():
+                    kb_state = "asleep"
+                    last_sent = None  # 键盘醒来后立即补发
+                    if once:
+                        log.warning("键盘没响应（可能在休眠）")
+                        return
+                else:
+                    kb_state = "connected"
+                    if now - battery_at >= BATTERY_EVERY_S:
+                        status = kb.battery_status()
+                        if status is not None:
+                            write_battery(status, now)
+                        battery_at = now
+                    if frame != last_sent:
+                        kb.send_banner(frame, "black", save=not saved_once)
+                        saved_once = True
+                        last_sent = frame
+                        log.info("已刷新屏幕（Claude：%s；Codex：%s）", claude, codex)
+            except (OSError, ValueError, SystemExit) as e:
+                log.warning("键盘通信失败：%s", e)
+                kb_state = "no_receiver" if isinstance(e, SystemExit) else "error"  # Keyboard() 找不到接收器时 sys.exit
+                if kb:
+                    kb.close()
+                kb, last_sent = None, None
 
         state = {"claude": {"windows": claude, "fetched_at": claude_ok_at},
                  "codex": {"windows": codex, "fetched_at": codex_ok_at},
@@ -264,11 +268,13 @@ def _on_sigterm(*_) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description="键盘 OLED 额度看板（后台常驻）")
     ap.add_argument("--once", action="store_true", help="只发一帧就退出")
+    ap.add_argument("--no-keyboard", action="store_true",
+                    help="不连接键盘，只取数并写 status.json（给菜单栏程序用）")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%m-%d %H:%M:%S")
     signal.signal(signal.SIGTERM, _on_sigterm)
     try:
-        run(args.once)
+        run(args.once, keyboard=not args.no_keyboard)
     except KeyboardInterrupt:
         pass
 
